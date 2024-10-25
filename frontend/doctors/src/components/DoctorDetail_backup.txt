@@ -1,0 +1,146 @@
+import React from "react";
+
+const DoctorDetail = ({ doctor }) => {
+  // Base URL from environment variables
+  const baseUrl = process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL;
+
+  let doctorDetail;
+
+  try {
+    doctorDetail = {
+      profile_picture: doctor?.profile_picture
+        ? `${baseUrl}${doctor?.profile_picture}`
+        : "/default-profile.jpg",
+      first_name: doctor?.first_name || "Unknown",
+      last_name: doctor?.last_name || "",
+      designation: doctor?.designation || "N/A",
+      email: doctor?.email || "Not provided",
+      phone: doctor?.phone || "Not provided",
+      specialties: doctor?.specialty || [],
+      qualifications: doctor?.qualifications || "Not available",
+      workplace: doctor?.workplace?.name || "Not available",
+      division: doctor?.division?.name || "Not available",
+      chambers: doctor?.chambers || [],
+      visiting_hours: doctor?.visiting_hours || [],
+      appointment_phone:
+        doctor?.chambers?.[0]?.appointment_number || "Not available",
+      // approved: doctor?.approved || false,
+      // payment_method: doctor?.payment_ref?.method || "N/A",
+      // payment_phone: doctor?.payment_ref?.phone || "N/A",
+      // transaction_ref: doctor?.payment_ref?.transaction_ref || "N/A",
+    };
+  } catch (error) {
+    console.error("Error fetching doctor details: ", error);
+    doctorDetail = {
+      profile_picture: "/default-profile.jpg",
+      first_name: "Unknown",
+      last_name: "",
+      designation: "N/A",
+      email: "Not provided",
+      phone: "Not provided",
+      specialties: [],
+      qualifications: "Not available",
+      workplace: "Not available",
+      division: "Not available",
+      chambers: [],
+      visiting_hours: [],
+      appointment_phone: "Not available",
+      // approved: false,
+      // payment_method: "N/A",
+      // payment_phone: "N/A",
+      // transaction_ref: "N/A",
+    };
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto py-8 px-4">
+      <div className="flex items-center space-x-6">
+        <img
+          src={doctorDetail.profile_picture}
+          alt={`${doctorDetail.first_name} ${doctorDetail.last_name}`}
+          className="w-32 h-32 rounded-full object-cover"
+        />
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">
+            Dr. {doctorDetail.first_name} {doctorDetail.last_name}
+          </h1>
+          <p className="text-gray-600">{doctorDetail.designation}</p>
+          <p className="text-gray-500">{doctorDetail.email}</p>
+          <p className="text-gray-500">{doctorDetail.phone}</p>
+        </div>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Specialty</h2>
+        <ul className="list-disc list-inside text-gray-600">
+          {doctorDetail.specialties.length > 0 ? (
+            doctorDetail.specialties.map((specialty, index) => (
+              <li key={index}>{specialty.title}</li>
+            ))
+          ) : (
+            <li>No specialties available</li>
+          )}
+        </ul>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Qualifications</h2>
+        <p className="text-gray-600">{doctorDetail.qualifications}</p>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Workplace</h2>
+        <p className="text-gray-600">{doctorDetail.workplace}</p>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Location</h2>
+        <p className="text-gray-600">Division: {doctorDetail.division}</p>
+      </div>
+
+      {/* Chambers Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Chambers</h2>
+        {doctorDetail.chambers.length > 0 ? (
+          doctorDetail.chambers.map((chamber, index) => (
+            <div key={index} className="bg-gray-100 p-4 rounded-lg mt-4">
+              <h3 className="text-lg font-semibold text-gray-700">
+                {chamber.chamber_name}
+              </h3>
+              <p className="text-gray-600">
+                Address: {chamber.chamber_address}
+              </p>
+              <p className="text-gray-600">
+                Appointment Number:{" "}
+                {chamber.appointment_number || "Not available"}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-600">No chambers available</p>
+        )}
+      </div>
+
+      {/* Visiting Hours Section */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold text-gray-800">Visiting Hours</h2>
+        {doctorDetail.visiting_hours.length > 0 ? (
+          doctorDetail.visiting_hours.map((hour, index) => (
+            <div key={index} className="bg-gray-100 p-4 rounded-lg mt-4">
+              <h3 className="text-lg font-semibold text-gray-700">
+                {hour.chamber.chamber_name}
+              </h3>
+              <p className="text-gray-600">
+                From {hour.visiting_hour_start} to {hour.visiting_hour_end}
+              </p>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-600">No visiting hours available</p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default DoctorDetail;

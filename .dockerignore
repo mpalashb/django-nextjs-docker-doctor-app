@@ -1,0 +1,55 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+
+# Ignore node_modules
+node_modules
+npm-debug.log
+yarn-error.log
+*.sqlite3
+env/
+venv/
+backend/venv/*
+backend/env.txt
+# *.env
+*.log
+*.pot
+
+*~
+.DS_Store
+notes
+env.txt
+# Build output
+.next
+out
+.next/
+notes
+# Logs
+logs
+*.log
+*.lock
+
+# Temporary files
+*.tmp
+*.swp
+
+# # Environment files
+# .env
+# .env.local
+# .env.development.local
+# .env.production.local
+
+# Docker-related files
+# Dockerfile
+# docker-compose.yml
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Git files
+.git
+.gitignore

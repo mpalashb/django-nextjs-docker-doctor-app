@@ -1,0 +1,92 @@
+# docker-compose-prod.yml
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: django-backend
+    command: >
+      sh -c "python manage.py migrate &&
+            python manage.py collectstatic --noinput &&
+            gunicorn doctors.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DJANGO_DEBUG=${DJANGO_DEBUG}
+      - DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}
+      - ALLOWED_HOST=${ALLOWED_HOST}
+      - CORS_ALLOWED=${CORS_ALLOWED}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"
+    restart: always
+    networks:
+      - app-network
+
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 5s
+
+  frontend:
+    build:
+      context: ./frontend/doctors
+      dockerfile: Dockerfile
+    container_name: nextjs-frontend
+    command: "yarn start"
+    
+    # command: "npm run dev"
+    environment:
+      # - NODE_ENV=production
+      - NEXT_PUBLIC_BACK_API=${NEXT_PUBLIC_BACK_API}
+      - NEXT_PUBLIC_BACK_API_PROD=${NEXT_PUBLIC_BACK_API_PROD}
+    expose:
+      - "3000"
+    networks:
+      - app-network
+
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+    #   start_period: 5s
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-server
+    volumes:
+      - ./nginx/nginx_prod.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+    restart: always  # Add this line
+
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  static_volume:
+  media_volume:

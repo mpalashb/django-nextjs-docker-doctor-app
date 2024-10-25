@@ -1,0 +1,473 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import SkeletonLoader from "../../components/spinners/SkeletonLoader";
+import { useAlert } from "../../context/alertContext"; // Import the alert context
+import { convertToAmPm, convertToDays } from "../../utils/timeDateConverter";
+import CreateChamber from "../../components/dashboard/CreateChamber";
+
+const ChamberComponent = () => {
+  const [chambers, setChambers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [chamberCreateClick, setchamberCreateClick] = useState(false);
+
+  const [editData, setEditData] = useState({
+    default_chamber: false,
+    chamber_name: "",
+    chamber_address: "",
+    appointment_number: "",
+    visiting_hours: [
+      { id: "", chamber: "", day: "", start_time: "", end_time: "" },
+    ],
+  });
+  const [editingChamberId, setEditingChamberId] = useState(null); // State to track which chamber is being edited
+  const baseUrl = process.env.NEXT_PUBLIC_BACK_API;
+  const { showAlert } = useAlert(); // Get the showAlert function from the alert context
+
+  useEffect(() => {
+    const fetchChambers = async () => {
+      try {
+        const response = await fetch(`${baseUrl}/api/doctor-chamber-all`, {
+          method: "GET",
+          headers: {
+            Authorization: `Token ${localStorage.getItem("token")}`,
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setChambers(data); // Save chambers data in the state
+          setLoading(false);
+        } else {
+          setLoading(false);
+          console.error("Failed to fetch chambers");
+        }
+      } catch (error) {
+        setLoading(false);
+        console.error("Error fetching chambers:", error);
+      }
+    };
+
+    fetchChambers();
+  }, [baseUrl, editData]);
+
+  // Update chamber function
+  const handleUpdate = async () => {
+    let v_hour_err = null;
+
+    try {
+      // Update chamber first
+      const response = await fetch(
+        `${baseUrl}/api/doctor-chamber/${editingChamberId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Token ${localStorage.getItem("token")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(editData), // Data from state
+        }
+      );
+
+      if (response.ok) {
+        const updatedChamber = await response.json();
+
+        // Update the chamber and visiting hours in the state (initial chamber update)
+        setChambers((prevChambers) =>
+          prevChambers.map((chamber) =>
+            chamber.id === editingChamberId
+              ? {
+                  ...chamber,
+                  ...updatedChamber,
+                }
+              : chamber
+          )
+        );
+
+        // After chamber update is successful, update visiting hours
+        await Promise.all(
+          editData.visiting_hours.map(async (vh) => {
+            if (vh.id) {
+              // If visiting hour has an ID, update it
+              const v_response = await fetch(
+                `${baseUrl}/api/doctor-chamber-visiting-hour/${vh.id}`,
+                {
+                  method: "PUT",
+                  headers: {
+                    Authorization: `Token ${localStorage.getItem("token")}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    day: vh.day,
+                    visiting_hour_start: vh.start_time,
+                    visiting_hour_end: vh.end_time,
+                  }),
+                }
+              );
+
+              if (v_response.ok) {
+                const updatedHour = await v_response.json();
+                console.log(updatedHour);
+
+                // Update the visiting hours in the state
+                setChambers((prevChambers) =>
+                  prevChambers.map((chamber) =>
+                    chamber.id === editingChamberId
+                      ? {
+                          ...chamber,
+                          visiting_hours: chamber.visiting_hours.map((vhItem) =>
+                            vhItem.id === updatedHour.id ? updatedHour : vhItem
+                          ),
+                        }
+                      : chamber
+                  )
+                );
+              } else {
+                const err_res = await v_response.json();
+                v_hour_err = err_res.detail;
+                throw new Error(v_hour_err);
+              }
+            }
+          })
+        );
+
+        showAlert(
+          "Chamber and visiting hours updated successfully!",
+          "success"
+        );
+
+        // Reset form data and editing state
+        setEditingChamberId(null);
+        setEditData({
+          default_chamber: false,
+          chamber_name: "",
+          chamber_address: "",
+          appointment_number: "",
+          visiting_hours: [
+            { id: "", chamber: "", day: "", start_time: "", end_time: "" },
+          ],
+        });
+      } else {
+        showAlert(v_hour_err || "Failed to update chamber.", "error");
+      }
+    } catch (error) {
+      showAlert(
+        v_hour_err || "Error updating chamber or visiting hours.",
+        "error"
+      );
+    }
+  };
+
+  // Delete chamber function
+  const handleDelete = async (chamberId) => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/doctor-chamber/${chamberId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Token ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Remove the chamber from the state
+        setChambers((prevChambers) =>
+          prevChambers.filter((chamber) => chamber.id !== chamberId)
+        );
+        showAlert("Chamber deleted successfully!", "success"); // Show success alert
+      } else {
+        showAlert("Failed to delete chamber.", "error"); // Show error alert
+        console.error("Failed to delete chamber");
+      }
+    } catch (error) {
+      showAlert("Error deleting chamber.", "error"); // Show error alert
+      console.error("Error deleting chamber:", error);
+    }
+  };
+
+  // Delete visiting hour function
+  const handleDeleteVisitingHour = async (vhId) => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/api/doctor-chamber-visiting-hour/${vhId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Token ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Remove visiting hour from state
+        setEditData((prevEditData) => ({
+          ...prevEditData,
+          visiting_hours: prevEditData.visiting_hours.filter(
+            (vh) => vh.id !== vhId
+          ),
+        }));
+        showAlert("Visiting hour deleted successfully!", "success");
+      } else {
+        showAlert("Failed to delete visiting hour.", "error");
+        console.error("Failed to delete visiting hour");
+      }
+    } catch (error) {
+      showAlert("Error deleting visiting hour.", "error");
+      console.error("Error deleting visiting hour:", error);
+    }
+  };
+
+  const handleEditClick = (chamber) => {
+    setEditingChamberId(chamber.id); // Set the chamber ID to be edited
+    setEditData({
+      default_chamber: chamber.default_chamber,
+      chamber_name: chamber.chamber_name,
+      chamber_address: chamber.chamber_address,
+      appointment_number: chamber.appointment_number,
+      visiting_hours: chamber.visiting_hours.map((vh) => ({
+        id: vh.id,
+        chamber: vh.chamber,
+        day: vh.day,
+        start_time: vh.visiting_hour_start,
+        end_time: vh.visiting_hour_end,
+      })),
+    }); // Populate the form with current chamber data
+  };
+
+  //   const handleVisitingHourChange = (chamberIndex, visitingHourIndex, e) => {
+  //     const { name, value } = e.target;
+  //     const updatedChambers = [...chambers]; // get the all existing chambers
+  //     updatedChambers[chamberIndex].visiting_hours[visitingHourIndex][name] =
+  //       value;
+  //       setEditData(updatedChambers);
+
+  //   };
+
+  if (loading) {
+    // Skeleton loader component
+    return <SkeletonLoader text="chamber" rows={2} />;
+  }
+
+  return (
+    <div>
+      <div className="pt-4">
+        <h2 className="py-2 text-2xl font-semibold">
+          {
+            chamberCreateClick
+              ? "Create Chamber" // If in the chamber creation state
+              : chambers.length === 0
+              ? "No Chamber Found!" // If no chambers are present and not in creation state
+              : "Chambers" // If chambers are available
+          }
+        </h2>
+      </div>
+
+      <div>
+        {!chamberCreateClick && (
+          <button
+            onClick={() => setchamberCreateClick(true)}
+            className="my-6 inline-flex items-center text-white bg-blue-600 border-0 py-2 px-4 focus:outline-none hover:bg-blue-700 rounded"
+          >
+            Create Chamber
+          </button>
+        )}
+        {chamberCreateClick && (
+          <div className="flex flex-col">
+            <CreateChamber
+              setchamberCreateClick={setchamberCreateClick}
+              setChambers={setChambers}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Update form */}
+      {editingChamberId && (
+        <div className="mb-6 p-4 border rounded-md shadow-sm">
+          <h3 className="text-xl font-bold">Update Chamber</h3>
+
+          <label htmlFor="#">Default/Primary</label>
+          <input
+            type="checkbox"
+            checked={editData.default_chamber}
+            onChange={(e) =>
+              setEditData({ ...editData, default_chamber: e.target.checked })
+            }
+            className="border p-2 mb-2 mx-3"
+          />
+
+          <input
+            type="text"
+            placeholder="Chamber Name"
+            value={editData.chamber_name}
+            onChange={(e) =>
+              setEditData({ ...editData, chamber_name: e.target.value })
+            }
+            className="border p-2 mb-2 w-full"
+          />
+          <input
+            type="text"
+            placeholder="Chamber Address"
+            value={editData.chamber_address}
+            onChange={(e) =>
+              setEditData({ ...editData, chamber_address: e.target.value })
+            }
+            className="border p-2 mb-2 w-full"
+          />
+          <input
+            type="text"
+            placeholder="Appointment Number"
+            value={editData.appointment_number}
+            onChange={(e) =>
+              setEditData({ ...editData, appointment_number: e.target.value })
+            }
+            className="border p-2 mb-2 w-full"
+          />
+
+          <div className="my-4">
+            <label>Visiting Hours</label>
+            {editData.visiting_hours.map((vh, index) => (
+              <div
+                key={vh.id || index}
+                className="mt-2 grid gap-3 lg:grid-cols-3"
+              >
+                <div>
+                  <label>Day</label>
+                  <select
+                    name="day"
+                    value={vh.day}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        visiting_hours: prev.visiting_hours.map((item, i) =>
+                          i === index ? { ...item, day: e.target.value } : item
+                        ),
+                      }))
+                    }
+                    className="mt-2 h-12 w-full rounded-md bg-gray-100 px-3"
+                    required
+                  >
+                    <option value="sun">Sunday</option>
+                    <option value="mon">Monday</option>
+                    <option value="tue">Tuesday</option>
+                    <option value="wed">Wednesday</option>
+                    <option value="thu">Thursday</option>
+                    <option value="fri">Friday</option>
+                    <option value="sat">Saturday</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Start Time</label>
+                  <input
+                    type="time"
+                    name="start_time"
+                    value={vh.start_time}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        visiting_hours: prev.visiting_hours.map((item, i) =>
+                          i === index
+                            ? { ...item, start_time: e.target.value }
+                            : item
+                        ),
+                      }))
+                    }
+                    className="mt-2 h-12 w-full rounded-md bg-gray-100 px-3"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label>End Time</label>
+                  <input
+                    type="time"
+                    name="end_time"
+                    value={vh.end_time}
+                    onChange={(e) =>
+                      setEditData((prev) => ({
+                        ...prev,
+                        visiting_hours: prev.visiting_hours.map((item, i) =>
+                          i === index
+                            ? { ...item, end_time: e.target.value }
+                            : item
+                        ),
+                      }))
+                    }
+                    className="mt-2 h-12 w-full rounded-md bg-gray-100 px-3"
+                    required
+                  />
+                  {vh.id && (
+                    <button
+                      type="button"
+                      className="bg-red-500 text-white px-4 py-2 rounded"
+                      onClick={() => handleDeleteVisitingHour(vh.id)}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button
+            onClick={handleUpdate}
+            className="bg-blue-600 text-white px-4 py-2 rounded"
+          >
+            Save Changes
+          </button>
+          <button
+            onClick={() => setEditingChamberId(null)} // Close the edit form
+            className="bg-gray-600 text-white px-4 py-2 rounded ml-2"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+
+      {chambers.map((chamber) => (
+        <div key={chamber.id} className="mb-6 p-4 border rounded-md shadow-sm">
+          {chamber?.default_chamber && (
+            <span className="ml-2 px-2 py-1 bg-green-500 text-white text-sm rounded-full">
+              Default
+            </span>
+          )}
+          <h3 className="text-xl font-bold">{chamber.chamber_name}</h3>
+          <p>{chamber.chamber_address}</p>
+          <p>Appointment Number: {chamber.appointment_number}</p>
+
+          <h4 className="font-semibold mt-2">Visiting Hours:</h4>
+          <ul className="list-disc list-inside">
+            {chamber.visiting_hours?.map((hour) => (
+              <li key={hour.id}>
+                {convertToDays(hour.day)}:{" "}
+                {convertToAmPm(hour.visiting_hour_start)} -{" "}
+                {convertToAmPm(hour.visiting_hour_end)}
+              </li>
+            ))}
+          </ul>
+
+          <div className="mt-4 flex space-x-4">
+            <button
+              onClick={() => handleDelete(chamber.id)}
+              className="bg-red-600 text-white px-4 py-2 rounded"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => handleEditClick(chamber)} // Open the edit form
+              className="bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              Update
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default ChamberComponent;

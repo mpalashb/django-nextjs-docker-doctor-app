@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: django-backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    expose:
+      - "8000"
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=doctors.settings.development
+
+  frontend:
+    build:
+      context: ./frontend/doctors
+    container_name: nextjs-frontend
+    command: "npm run dev"
+    environment:
+      - NEXT_PUBLIC_BACK_API=${NEXT_PUBLIC_BACK_API}
+
+    volumes:
+      - ./frontend/doctors:/app
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-server
+    volumes:
+      - ./nginx/nginx_dev.conf:/etc/nginx/nginx.conf
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+      - frontend
+
+
+volumes:
+  static_volume:
+  media_volume:
+  pgdata:

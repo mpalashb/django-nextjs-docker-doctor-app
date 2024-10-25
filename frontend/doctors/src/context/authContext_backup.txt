@@ -1,0 +1,163 @@
+"use client";
+
+// authContext.js
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAlert } from "../context/alertContext";
+
+const baseUrl = process.env.NEXT_PUBLIC_BACK_API;
+
+// Create the context
+const AuthContext = createContext();
+
+// Custom hook to easily use the AuthContext
+export const useAuth = () => useContext(AuthContext);
+
+// AuthProvider component to wrap the app
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const router = useRouter();
+
+  const { showAlert } = useAlert();
+
+  let errorTimeout; // Variable to hold the timeout reference
+
+  // Function to clear error after a specified duration
+  const clearError = () => {
+    errorTimeout = setTimeout(() => {
+      setError(null);
+    }, 2000); // Clear error after 5 seconds
+  };
+
+  // Fetch authenticated user (authMe)
+  const fetchAuthMe = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${baseUrl}/api/user/auth/me`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`, // Include token in Authorization header
+        },
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setUser(data);
+      } else {
+        setUser(null);
+        throw new Error(data.detail || "Unable to fetch user.");
+      }
+    } catch (err) {
+      setError(err.message);
+      clearError();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Login function
+  // In authContext.js
+
+  const login = async (username, password) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/user/auth/login`, {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        // Store token in local storage
+        localStorage.setItem("token", data.token);
+        setError(null);
+
+        await fetchAuthMe();
+        router.push("/dashboard"); // Redirect after successful login
+      } else {
+        throw new Error(data.detail || "Login failed.");
+      }
+    } catch (err) {
+      setError(err.message);
+      clearError();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Register function
+  const register = async (username, password) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${baseUrl}/api/user/auth/register`, {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setError(null);
+        // await fetchAuthMe();
+        router.push("/login"); // Redirect after successful login
+      } else {
+        throw new Error(data.username || "Registration failed.");
+      }
+    } catch (err) {
+      setError(err.message);
+      clearError();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout function
+  const logout = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${baseUrl}/api/user/auth/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Token ${token}`,
+        },
+      });
+
+      if (res.ok) {
+        setUser(null);
+        router.push("/login"); // Redirect after successful logout
+      } else {
+        throw new Error("Logout failed.");
+      }
+    } catch (err) {
+      setError(err.message);
+      clearError();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Effect to fetch user on mount
+  useEffect(() => {
+    fetchAuthMe();
+
+    // Cleanup function to clear timeout if the component unmounts
+    return () => {
+      clearTimeout(errorTimeout);
+    };
+  }, []);
+
+  return (
+    <AuthContext.Provider
+      value={{ user, loading, error, login, register, logout }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};

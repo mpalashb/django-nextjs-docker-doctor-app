@@ -1,0 +1,12 @@
+django==5.0
+djangorestframework
+django-rest-knox
+django-phone-field
+pillow
+boto3
+python-dotenv
+django-environ
+psycopg2-binary
+django-storages
+django-cors-headers
+gunicorn

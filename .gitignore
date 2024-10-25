@@ -1,0 +1,49 @@
+# Python / Django
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+env/
+venv/
+backend/venv/*
+backend/env.txt
+.env
+*.log
+*.pot
+*.py[co]
+*~
+.DS_Store
+notes
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+yarn-error.log
+*.cache
+*.lock
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Docker
+docker-compose.override.yml
+*.pid
+*.log
+
+# NGINX
+nginx/error.log
+nginx/access.log
+
+# MacOS
+.DS_Store
+
+# Logs and OS files
+*.swp
+*.swo
+Thumbs.db
+*.bak
+*.log
+*.backup
