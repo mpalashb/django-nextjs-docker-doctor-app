@@ -4,7 +4,11 @@ from ..base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = [os.environ.get('ALLOWED_HOST'), 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+
+ALLOWED_HOSTS_ENV = os.getenv("ALLOWED_HOST", "").split(",")
+for ah in ALLOWED_HOSTS_ENV:
+    ALLOWED_HOSTS.append(ah.strip())
 
 
 INSTALLED_APPS.append(

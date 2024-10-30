@@ -26,6 +26,7 @@ env.txt
 .next
 out
 .next/
+frontend/doctors/.next/
 notes
 # Logs
 logs
